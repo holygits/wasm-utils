@@ -41,7 +41,7 @@ impl fmt::Display for Error {
     }
 }
 
-/// If module has an exported function matching "create" symbol we want to pack it into "constructor".
+/// If a pwasm module has an exported function matching "create" symbol we want to pack it into "constructor".
 /// `raw_module` is the actual contract code
 /// `ctor_module` is the constructor which should return `raw_module`
 pub fn pack_instance(raw_module: Vec<u8>, mut ctor_module: elements::Module, target: &TargetRuntime) -> Result<elements::Module, Error> {
@@ -196,14 +196,14 @@ pub fn pack_instance(raw_module: Vec<u8>, mut ctor_module: elements::Module, tar
             .build()
         .build();
 
-    for section in new_module.sections_mut() {
-        if let &mut Section::Export(ref mut export_section) = section {
-            for entry in export_section.entries_mut().iter_mut() {
-                if target.symbols().create == entry.field() {
-                    // change `create` symbol export name into default `call` symbol name.
-                    *entry.field_mut() = target.symbols().call.to_owned();
-                    *entry.internal_mut() = elements::Internal::Function(last_function_index as u32);
-                }
+    // TODO: This expects a prior call to `optimize()` to remove the `call` export
+    // if "--skip-optimization" is passed this will produce a duplciate `call` export 
+    if let Some(export_section) = new_module.export_section_mut() {
+        for entry in export_section.entries_mut().iter_mut() {
+            if target.symbols().create == entry.field() {
+                // Change `create` symbol export name into default `call` symbol name.
+                *entry.field_mut() = target.symbols().call.to_owned();
+                *entry.internal_mut() = elements::Internal::Function(last_function_index as u32);
             }
         }
     };
